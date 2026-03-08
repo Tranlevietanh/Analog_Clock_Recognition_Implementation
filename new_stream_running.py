@@ -10,7 +10,6 @@ import torchvision.models as models
 from clock_utils import warp
 from collections import deque
 
-# ================== CONFIG ==================
 YOLO_MODEL_PATH = r"D:\Bai tap\Visual Studio for Python\Midterm\YOLO_customized.pt"
 YOLO_POSE_PATH = r"D:\Bai tap\Visual Studio for Python\Midterm\YOLO_pose_customized_2.pt"
 CLOCK_CLASS_ID = 0
@@ -18,7 +17,6 @@ CLOCK_CLASS_ID = 0
 CONFIDENCE_THRESHOLD = 0.5
 IOU_THRESHOLD = 0.5
 
-# BUFFER SIZES
 BOX_WINDOW = 3         # Detect 3 frames for box averaging
 POSE_WINDOW = 5        # Collect 5 pose angles before rotating/reading
 PROCESS_INTERVAL = 1.0 
@@ -27,7 +25,6 @@ CROP_MARGIN = 0.12
 TIME_MODEL_PATH = r"D:\Bai tap\Visual Studio for Python\Midterm\full_st.pth"
 STN_MODEL_PATH  = r"D:\Bai tap\Visual Studio for Python\Midterm\full.pth"
 
-# ================== LOAD MODELS ==================
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
 yolo = YOLO(YOLO_MODEL_PATH)
 yolo_pose = YOLO(YOLO_POSE_PATH)
@@ -42,7 +39,6 @@ model_stn.load_state_dict(torch.load(STN_MODEL_PATH, map_location=device))
 model_time.to(device).eval()
 model_stn.to(device).eval()
 
-# ================== HELPERS ==================
 def compute_iou(b1, b2):
     x1, y1, x2, y2 = max(b1[0], b2[0]), max(b1[1], b2[1]), min(b1[2], b2[2]), min(b1[3], b2[3])
     inter = max(0, x2 - x1) * max(0, y2 - y1)
@@ -68,7 +64,6 @@ def read_clock_time(cropped_img):
         idx = torch.argmax(pred, dim=1)[0]
         return idx // 60, idx % 60
 
-# ================== MAIN ==================
 cap = cv2.VideoCapture(0)
 box_buffers = {}      # track_id -> deque of boxes
 angle_buffers = {}    # track_id -> deque of angles
@@ -125,20 +120,15 @@ while True:
                 avg_angle = np.mean(angle_buffers[track_id])
                 
                 ch, cw = crop.shape[:2]
-                M = cv2.getRotationMatrix2D((cw//2, ch//2), avg_angle, 1.0) # Rotation around crop center
+                M = cv2.getRotationMatrix2D((cw//2, ch//2), avg_angle, 1.0)
                 aligned = cv2.warpAffine(crop, M, (cw, ch))
                 
                 hour, minute = read_clock_time(aligned)
                 clock_results[track_id] = f"{hour:02d}:{minute:02d}"
-                
-                # Clear angle buffer to wait for next 5-frame cycle if desired, 
-                # or keep it popping oldest to update every frame.
-                # To read only once every 5 frames, uncomment: angle_buffers[track_id].clear()
 
             if track_id in clock_results:
                 cv2.putText(frame, clock_results[track_id], (ax1, ay1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (255, 255, 0), 2)
 
-    # Cleanup
     for tid in list(box_buffers.keys()):
         if tid not in active_ids:
             box_buffers.pop(tid, None)
@@ -149,4 +139,5 @@ while True:
     if cv2.waitKey(1) & 0xFF == ord('q'): break
 
 cap.release()
+
 cv2.destroyAllWindows()
